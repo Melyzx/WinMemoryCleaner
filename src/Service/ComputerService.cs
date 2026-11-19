@@ -424,12 +424,13 @@ namespace WinMemoryCleaner
 
                 App.ReleaseMemory();
             }
-            catch
+            catch (Exception ex)
             {
-                // ignored
+                DebugTrace.Log("ReleaseMemory EXCEPTION: " + ex);
             }
 
             // Log
+            DebugTrace.Begin("Logger.Log (Windows Event Log + file)");
             try
             {
                 // Info
@@ -447,10 +448,12 @@ namespace WinMemoryCleaner
                     Logger.Log(new Log(Enums.Log.Levels.Error, Localizer.String.Invalid, error));
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // ignored
+                DebugTrace.Log("Logger.Log EXCEPTION: " + ex);
             }
+
+            DebugTrace.End();
         }
 
         /// <summary>

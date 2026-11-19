@@ -1,0 +1,20 @@
+name: Debug trace build
+on:
+  workflow_dispatch:
+  push:
+    branches: [debug-trace]
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: microsoft/setup-msbuild@v2
+      - uses: nuget/setup-nuget@v2
+      - run: nuget restore src\WinMemoryCleaner.sln
+      - run: msbuild src\WinMemoryCleaner.sln /m /p:Configuration=Release /p:Platform="Any CPU" /p:TreatWarningsAsErrors=false /p:RunCodeAnalysis=false
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WinMemoryCleaner-debug-trace
+          path: |
+            src/bin/Release/WinMemoryCleaner.exe
+            src/bin/Release/WinMemoryCleaner.pdb

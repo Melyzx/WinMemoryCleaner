@@ -119,6 +119,7 @@
     <Compile Include="Converters\StringFormatConverter.cs" />
     <Compile Include="Converters\SumNumericConverter.cs" />
     <Compile Include="Core\Constants.cs" />
+    <Compile Include="Core\DebugTrace.cs" />
     <Compile Include="Core\DependencyInjection.cs" />
     <Compile Include="Core\Enums.cs" />
     <Compile Include="Core\ExtensionMethods.cs" />

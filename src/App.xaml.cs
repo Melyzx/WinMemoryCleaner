@@ -396,6 +396,8 @@ namespace WinMemoryCleaner
 
             try
             {
+                DebugTrace.Init(Dispatcher);
+
                 Initialize();
 
                 var commandLineArguments = startupEvent != null ? startupEvent.Args.Select(arg => arg.Replace("-", "/").Trim()).ToArray() : null;
@@ -601,23 +603,31 @@ namespace WinMemoryCleaner
             // Garbage Collector
             try
             {
+                DebugTrace.Begin("GC.Collect #1");
                 GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced);
+                DebugTrace.End();
+                DebugTrace.Begin("GC.WaitForPendingFinalizers");
                 GC.WaitForPendingFinalizers();
+                DebugTrace.End();
+                DebugTrace.Begin("GC.Collect #2");
                 GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced);
+                DebugTrace.End();
             }
-            catch
+            catch (Exception ex)
             {
-                // ignored
+                DebugTrace.Log("GC EXCEPTION: " + ex);
             }
 
             // Optimize App Working Set
             try
             {
+                DebugTrace.Begin("EmptyWorkingSet (self)");
                 NativeMethods.EmptyWorkingSet(Process.GetCurrentProcess().Handle);
+                DebugTrace.End();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // ignored
+                DebugTrace.Log("EmptyWorkingSet EXCEPTION: " + ex);
             }
         }
 

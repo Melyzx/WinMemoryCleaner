@@ -1737,6 +1737,8 @@ namespace WinMemoryCleaner
         /// <param name="step">The step.</param>
         private void OnOptimizeProgressUpdate(byte value, string step)
         {
+            DebugTrace.Begin(string.Format("Area {0}/{1}: {2}", value, OptimizationProgressTotal, step));
+
             OptimizationProgressPercentage = (byte)(value * 100 / OptimizationProgressTotal);
             OptimizationProgressStep = step;
             OptimizationProgressValue = value;
@@ -1748,27 +1750,41 @@ namespace WinMemoryCleaner
         /// <param name="reason">Optimization reason</param>
         private void Optimize(Enums.Memory.Optimization.Reason reason)
         {
+            DebugTrace.Log("Optimize requested (" + reason + "), areas=" + Settings.MemoryAreas + ", lowPriority=" + Settings.RunOnPriority);
+            DebugTrace.Begin("Waiting for optimize lock");
             lock (_lockObject)
             {
+                DebugTrace.End();
                 try
                 {
+                    DebugTrace.Begin("Set IsBusy/IsOptimizationRunning = true");
                     IsBusy = true;
                     IsOptimizationRunning = true;
+                    DebugTrace.End();
 
+                    DebugTrace.Begin("Tray icon update (start)");
                     NotificationService.Update(Computer.Memory, IsOptimizationRunning);
+                    DebugTrace.End();
 
                     // App priority
+                    DebugTrace.Begin("SetPriority");
                     App.SetPriority(Settings.RunOnPriority);
+                    DebugTrace.End();
 
                     // Memory optimize
                     var tempPhysicalAvailable = Computer.Memory.Physical.Free.Bytes;
                     var tempVirtualAvailable = Computer.Memory.Virtual.Free.Bytes;
 
                     _computerService.Optimize(reason, Settings.MemoryAreas);
+                    DebugTrace.Log("ComputerService.Optimize returned");
 
                     // Update memory info
+                    DebugTrace.Begin("Read memory info");
                     Computer.Memory = _computerService.Memory;
+                    DebugTrace.End();
+                    DebugTrace.Begin("RaisePropertyChanged(Computer)");
                     RaisePropertyChanged(() => Computer);
+                    DebugTrace.End();
 
                     // Notification
                     if (Settings.ShowOptimizationNotifications)
@@ -1780,21 +1796,33 @@ namespace WinMemoryCleaner
                             ? string.Format(Localizer.Culture, "{1}{0}{0}{2}: {3}{0}{4}: {5:0.#} {6}{0}{7}: {8:0.#} {9}", Environment.NewLine, Localizer.String.MemoryOptimized.ToUpper(Localizer.Culture), Localizer.String.Reason, reason.GetString(), Localizer.String.PhysicalMemory, physicalReleased.Key, physicalReleased.Value, Localizer.String.VirtualMemory, virtualReleased.Key, virtualReleased.Value)
                             : string.Format(Localizer.Culture, "{1}{0}{0}{2}: {3}{0}{4}: {5:0.#} {6}", Environment.NewLine, Localizer.String.MemoryOptimized.ToUpper(Localizer.Culture), Localizer.String.Reason, reason.GetString(), Localizer.String.PhysicalMemory, physicalReleased.Key, physicalReleased.Value);
 
+                        DebugTrace.Begin("Notify (balloon notification)");
                         Notify(message);
+                        DebugTrace.End();
                     }
+                }
+                catch (Exception ex)
+                {
+                    DebugTrace.Log("Optimize EXCEPTION: " + ex);
+                    throw;
                 }
                 finally
                 {
+                    DebugTrace.Begin("Set IsOptimizationRunning/IsBusy = false");
                     IsOptimizationRunning = false;
                     IsBusy = false;
+                    DebugTrace.End();
 
+                    DebugTrace.Begin("Tray icon update (end)");
                     NotificationService.Update(Computer.Memory, IsOptimizationRunning);
+                    DebugTrace.End();
 
                     // Raise the event after IsOptimizationRunning is set to false
                     // Use BeginInvoke to ensure it runs after all property changes propagate
                     WpfApplication.Current.Dispatcher.BeginInvoke((Action)(() =>
                     {
                         // Force command manager to re-evaluate CanExecute on all commands
+                        DebugTrace.Log("UI: InvalidateRequerySuggested");
                         CommandManager.InvalidateRequerySuggested();
                     }), System.Windows.Threading.DispatcherPriority.Normal);
 
@@ -1803,9 +1831,13 @@ namespace WinMemoryCleaner
                     {
                         WpfApplication.Current.Dispatcher.BeginInvoke((Action)(() =>
                          {
+                             DebugTrace.Log("UI: OnOptimizeCommandCompleted");
                              OnOptimizeCommandCompleted();
+                             DebugTrace.Log("UI: OnOptimizeCommandCompleted done");
                          }), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
                     }
+
+                    DebugTrace.Log("Optimize finished (worker thread)");
                 }
             }
         }
@@ -1825,6 +1857,7 @@ namespace WinMemoryCleaner
                 OptimizationProgressValue = 0;
                 OptimizationProgressTotal = (byte)(new BitArray(new[] { (int)Settings.MemoryAreas }).OfType<bool>().Count(x => x) + 1);
 
+                DebugTrace.Log("OptimizeAsync: queuing, total steps=" + OptimizationProgressTotal);
                 ThreadPool.QueueUserWorkItem(_ => Optimize(reason));
             }
             catch (Exception e)
