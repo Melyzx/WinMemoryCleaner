@@ -1,0 +1,11 @@
+image: Visual Studio 2022
+branches:
+  only: [debug-trace]
+before_build:
+  - nuget restore src\WinMemoryCleaner.sln
+build_script:
+  - msbuild src\WinMemoryCleaner.sln /m /p:Configuration=Release /p:Platform="Any CPU" /p:TreatWarningsAsErrors=false /p:RunCodeAnalysis=false
+test: off
+artifacts:
+  - path: src\bin\Release\WinMemoryCleaner.exe
+  - path: src\bin\Release\WinMemoryCleaner.pdb
