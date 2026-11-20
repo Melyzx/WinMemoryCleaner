@@ -632,6 +632,17 @@ namespace WinMemoryCleaner
             if (memory == null)
                 throw new ArgumentNullException("memory");
 
+            // The tray icon belongs to the UI thread. Updating it from a worker thread while holding
+            // _disposeLock deadlocks: GetIcon -> StopRotationAnimation -> Dispatcher.Invoke waits for the
+            // UI thread, while the UI thread's OnRotationTimerTick waits for _disposeLock.
+            var dispatcher = WpfApplication.Current != null ? WpfApplication.Current.Dispatcher : null;
+
+            if (dispatcher != null && !dispatcher.CheckAccess())
+            {
+                dispatcher.BeginInvoke((Action)(() => Update(memory, isOptimizing)));
+                return;
+            }
+
             lock (_disposeLock)
             {
                 if (_disposed || _notifyIcon == null)
